@@ -1,0 +1,7 @@
+dvc[gcs]
+numpy
+torch
+transformers
+scikit-learn
+matplotlib
+nilearn
