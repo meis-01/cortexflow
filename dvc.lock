@@ -1,0 +1,67 @@
+schema: '2.0'
+stages:
+  text:
+    cmd: python src/pilot/make_tr_text.py
+    outs:
+    - path: data/pilot/text_trs.txt
+      hash: md5
+      md5: fafbb59c6645ff6a0463109bb4d2fc7d
+      size: 13920
+  gpt2:
+    cmd: python src/pilot/extract_gpt2.py
+    deps:
+    - path: data/pilot/text_trs.txt
+      hash: md5
+      md5: fafbb59c6645ff6a0463109bb4d2fc7d
+      size: 13920
+    outs:
+    - path: data/pilot/X.npy
+      hash: md5
+      md5: 329d5bc5f63c8b4c7f4b56f217bd79cb
+      size: 368768
+  synth:
+    cmd: python src/pilot/make_synth_bold.py
+    deps:
+    - path: data/pilot/X.npy
+      hash: md5
+      md5: 329d5bc5f63c8b4c7f4b56f217bd79cb
+      size: 368768
+    outs:
+    - path: data/pilot/Y.npy
+      hash: md5
+      md5: d65772993a6c0b8ca6fad3da905f9bdf
+      size: 96128
+  train:
+    cmd: python src/pilot/train_ridge.py
+    deps:
+    - path: data/pilot/X.npy
+      hash: md5
+      md5: 329d5bc5f63c8b4c7f4b56f217bd79cb
+      size: 368768
+    - path: data/pilot/Y.npy
+      hash: md5
+      md5: d65772993a6c0b8ca6fad3da905f9bdf
+      size: 96128
+    outs:
+    - path: artifacts/train
+      hash: md5
+      md5: 9e299c96cedb5471ba8daca336dfb2fe.dir
+      size: 96185
+      nfiles: 2
+  eval:
+    cmd: python src/pilot/evaluate.py
+    deps:
+    - path: artifacts/train/Yhat.npy
+      hash: md5
+      md5: 72f40d1b7ab8f4a20bbef2ce7bc48fe7
+      size: 96128
+    - path: data/pilot/Y.npy
+      hash: md5
+      md5: d65772993a6c0b8ca6fad3da905f9bdf
+      size: 96128
+    outs:
+    - path: artifacts/eval
+      hash: md5
+      md5: 8abc1aee4c1632bb887b748be8cec095.dir
+      size: 18861
+      nfiles: 3

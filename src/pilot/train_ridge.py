@@ -6,7 +6,7 @@ def mean_corr(y,yh):
   return float(np.mean((y*yh).sum(0)/np.sqrt((y*y).sum(0)*(yh*yh).sum(0)+1e-9)))
 ap=argparse.ArgumentParser()
 ap.add_argument("--X",default="data/pilot/X.npy"); ap.add_argument("--Y",default="data/pilot/Y.npy")
-ap.add_argument("--out_dir",default="artifacts/pilot"); ap.add_argument("--splits",type=int,default=5)
+ap.add_argument("--out_dir",default="artifacts/train"); ap.add_argument("--splits",type=int,default=5)
 a=ap.parse_args(); X=np.load(a.X); Y=np.load(a.Y)
 alphas=np.logspace(2,7,16); cv=TimeSeriesSplit(n_splits=a.splits); scores=[]
 for alpha in alphas:

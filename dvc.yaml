@@ -2,5 +2,5 @@ stages:
   text:  {cmd: "python src/pilot/make_tr_text.py", outs: ["data/pilot/text_trs.txt"]}
   gpt2:  {cmd: "python src/pilot/extract_gpt2.py", deps: ["data/pilot/text_trs.txt"], outs: ["data/pilot/X.npy"]}
   synth: {cmd: "python src/pilot/make_synth_bold.py", deps: ["data/pilot/X.npy"], outs: ["data/pilot/Y.npy"]}
-  train: {cmd: "python src/pilot/train_ridge.py", deps: ["data/pilot/X.npy","data/pilot/Y.npy"], outs: ["artifacts/pilot"]}
-  eval:  {cmd: "python src/pilot/evaluate.py", deps: ["data/pilot/Y.npy","artifacts/pilot/Yhat.npy"], outs: ["artifacts/pilot/plots"]}
+  train: {cmd: "python src/pilot/train_ridge.py", deps: ["data/pilot/X.npy","data/pilot/Y.npy"], outs: ["artifacts/train"]}
+  eval:  {cmd: "python src/pilot/evaluate.py", deps: ["data/pilot/Y.npy","artifacts/train/Yhat.npy"], outs: ["artifacts/eval"]}
