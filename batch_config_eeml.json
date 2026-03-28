@@ -1,0 +1,23 @@
+{
+  "comment": "Example batch configuration for EEML reproduction abstract",
+  "experiments": [
+    {
+      "model": "gpt2",
+      "lang": "en",
+      "layer": 6,
+      "n_voxels": 100000
+    },
+    {
+      "model": "gpt2",
+      "lang": "fr",
+      "layer": 6,
+      "n_voxels": 100000
+    },
+    {
+      "model": "gpt2",
+      "lang": "cn",
+      "layer": 6,
+      "n_voxels": 100000
+    }
+  ]
+}

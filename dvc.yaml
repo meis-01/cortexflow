@@ -1,6 +1,43 @@
 stages:
-  text:  {cmd: "python src/pilot/make_tr_text.py", outs: ["data/pilot/text_trs.txt"]}
-  gpt2:  {cmd: "python src/pilot/extract_gpt2.py", deps: ["data/pilot/text_trs.txt"], outs: ["data/pilot/X.npy"]}
-  synth: {cmd: "python src/pilot/make_synth_bold.py", deps: ["data/pilot/X.npy"], outs: ["data/pilot/Y.npy"]}
-  train: {cmd: "python src/pilot/train_ridge.py", deps: ["data/pilot/X.npy","data/pilot/Y.npy"], outs: ["artifacts/train"]}
-  eval:  {cmd: "python src/pilot/evaluate.py", deps: ["data/pilot/Y.npy","artifacts/train/Yhat.npy"], outs: ["artifacts/eval"]}
+  # Pilot data generation pipeline
+  # Runs when mode is 'pilot'
+  text:
+    cmd: "python src/pilot/make_tr_text.py"
+    outs:
+      - data/pilot/text_trs.txt
+  
+  gpt2:
+    cmd: "python src/pilot/extract_gpt2.py"
+    deps:
+      - data/pilot/text_trs.txt
+    outs:
+      - data/pilot/X.npy
+  
+  synth:
+    cmd: "python src/pilot/make_synth_bold.py"
+    deps:
+      - data/pilot/X.npy
+    outs:
+      - data/pilot/Y.npy
+
+  # Main paper reproduction pipeline (uses current mode config)
+  # Run with: dvc repro paper
+  # Override mode with: dvc repro -S mode=final paper
+  paper:
+    cmd: "python src/run_paper.py --mode ${mode}"
+    deps:
+      - src/run_paper.py
+      - src/cortexflow/__init__.py
+      - src/cortexflow/config.py
+      - src/cortexflow/config_utils.py
+      - src/cortexflow/design.py
+      - src/cortexflow/features.py
+      - src/cortexflow/fmri.py
+      - src/cortexflow/io_utils.py
+      - src/cortexflow/metrics.py
+      - src/cortexflow/modeling.py
+      - src/cortexflow/pipeline.py
+      - configs/${mode}.json
+    outs:
+      - artifacts/${mode}:
+          cache: false

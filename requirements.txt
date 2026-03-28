@@ -1,7 +1,11 @@
-dvc[gcs]
+dvc
+dvc-gs
 numpy
 torch
 transformers
 scikit-learn
 matplotlib
 nilearn
+scipy
+nibabel
+tqdm
