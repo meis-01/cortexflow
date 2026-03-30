@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import List, Sequence, Tuple
 
 import numpy as np
 from nilearn.glm.first_level import compute_regressor
@@ -59,3 +59,37 @@ def build_regressor_from_activations(
         signal, _ = compute_regressor(exp_condition, hrf_model, frame_times)
         nn_signals.append(signal[:, 0])
     return np.array(nn_signals).T
+
+
+def build_temporal_design_matrix(
+    activations: np.ndarray,
+    onsets: np.ndarray,
+    offsets: np.ndarray,
+    frame_times: np.ndarray,
+    temporal_feature_strategy: str,
+    hrf_model: str = "glover",
+    response_lag_trs: Sequence[int] = (2, 3, 4, 5),
+) -> Tuple[np.ndarray, int]:
+    """Construct a TR-level design matrix using a named temporal strategy."""
+    tr_aligned_activations = build_regressor_from_activations(
+        activations,
+        onsets,
+        offsets,
+        frame_times,
+        hrf_model=hrf_model,
+    )
+
+    if temporal_feature_strategy == "hemodynamic_convolution":
+        return tr_aligned_activations, 0
+
+    if temporal_feature_strategy == "lagged_response_window":
+        delayed_design, trim_from_start = make_delayed_design(
+            tr_aligned_activations,
+            list(response_lag_trs),
+        )
+        return delayed_design, trim_from_start
+
+    raise ValueError(
+        "temporal_feature_strategy must be one of: "
+        "hemodynamic_convolution, lagged_response_window"
+    )

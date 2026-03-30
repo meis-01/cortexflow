@@ -1,0 +1,34 @@
+{
+  "mode": "final",
+  "dataset": {
+    "text_trs": "data/final/text_trs.txt",
+    "fmri_matrix": "data/final/Y.npy",
+    "fmri_nifti": "data/openneuro/ds003643/sub-*/func/*_bold.nii*",
+    "mask_img": null,
+    "max_voxels": 500
+  },
+  "features": {
+    "model_name": "gpt2",
+    "layer": 6,
+    "batch_size": 8,
+    "max_length": 96,
+    "pooling": "mean"
+  },
+  "design": {
+    "delays": [2, 3, 4, 5],
+    "standardize": true
+  },
+  "training": {
+    "alphas": [100.0, 316.0, 1000.0, 3160.0, 10000.0, 31600.0, 100000.0],
+    "n_splits": 5,
+    "fit_intercept": true
+  },
+  "evaluation": {
+    "save_predictions": true,
+    "hemi_labels": null
+  },
+  "output": {
+    "dir": "artifacts/final"
+  },
+  "seed": 0
+}

@@ -43,6 +43,10 @@ def run_batch(
         lang = exp_config["lang"]
         layer = exp_config["layer"]
         n_voxels = exp_config.get("n_voxels", 100000)
+        temporal_feature_strategy = exp_config.get(
+            "temporal_feature_strategy", "hemodynamic_convolution"
+        )
+        response_lag_trs = exp_config.get("response_lag_trs", [2, 3, 4, 5])
 
         exp_name = f"{model}_{lang}_layer{layer}".replace("/", "_")
         exp_output = output_dir / exp_name
@@ -68,7 +72,12 @@ def run_batch(
             str(exp_output),
             "--n_voxels",
             str(n_voxels),
+            "--temporal_feature_strategy",
+            temporal_feature_strategy,
         ]
+
+        if temporal_feature_strategy == "lagged_response_window":
+            cmd.extend(["--response_lag_trs", *[str(delay) for delay in response_lag_trs]])
 
         result = subprocess.run(cmd, cwd=".")
         if result.returncode != 0:

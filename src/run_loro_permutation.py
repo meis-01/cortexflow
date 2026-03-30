@@ -21,7 +21,7 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from cortexflow.design import build_regressor_from_activations
+from cortexflow.design import build_temporal_design_matrix
 from cortexflow.features import (
     extract_word_activations_run,
     load_llm_model,
@@ -58,6 +58,8 @@ def run_permutation_baseline(
     n_runs: int = 9,
     t_r: float = 2.0,
     hrf_model: str = "glover",
+    temporal_feature_strategy: str = "hemodynamic_convolution",
+    response_lag_trs: Optional[List[int]] = None,
     n_voxels: int = 100000,
     seed: int = 42,
     access_token: Optional[str] = None,
@@ -94,6 +96,8 @@ def run_permutation_baseline(
 
     np.random.seed(seed)
     lang_lower = lang.lower()
+    if response_lag_trs is None:
+        response_lag_trs = [2, 3, 4, 5]
 
     # ---- Load data (identical to real run) ----
     print(f"\nLoading real fMRI & LLM for {model_name} ({lang_lower}, layer {layer})...")
@@ -179,9 +183,17 @@ def run_permutation_baseline(
         runs_activations_real.append(activations_run)
 
         frame_times = np.arange(fmri_runs[run_idx].shape[0]) * t_r + 0.5 * t_r
-        regressor_run = build_regressor_from_activations(
-            activations_run, onsets, offsets, frame_times, hrf_model=hrf_model
+        regressor_run, trim_from_start = build_temporal_design_matrix(
+            activations_run,
+            onsets,
+            offsets,
+            frame_times,
+            temporal_feature_strategy=temporal_feature_strategy,
+            hrf_model=hrf_model,
+            response_lag_trs=response_lag_trs,
         )
+        if trim_from_start > 0:
+            fmri_runs[run_idx] = fmri_runs[run_idx][trim_from_start:]
         n_run = min(regressor_run.shape[0], fmri_runs[run_idx].shape[0])
         regressor_run = regressor_run[:n_run]
         fmri_runs[run_idx] = fmri_runs[run_idx][:n_run]
@@ -226,29 +238,34 @@ def run_permutation_baseline(
 
         # Rebuild design matrices with permuted activations
         runs_regressors_perm = []
+        fmri_runs_perm = []
         for run_idx in range(n_runs):
             onsets = runs_onsets[run_idx]
             offsets = runs_offsets[run_idx]
 
             frame_times = np.arange(fmri_runs[run_idx].shape[0]) * t_r + 0.5 * t_r
-            regressor_run = build_regressor_from_activations(
+            regressor_run, _ = build_temporal_design_matrix(
                 runs_activations_perm[run_idx],
                 onsets,
                 offsets,
                 frame_times,
+                temporal_feature_strategy=temporal_feature_strategy,
                 hrf_model=hrf_model,
+                response_lag_trs=response_lag_trs,
             )
             n_run = min(regressor_run.shape[0], fmri_runs[run_idx].shape[0])
             regressor_run = regressor_run[:n_run]
+            fmri_run = fmri_runs[run_idx][:n_run]
             regressor_run = (
                 regressor_run - regressor_run.mean(axis=0, keepdims=True)
             ) / regressor_run.std(axis=0, keepdims=True)
             runs_regressors_perm.append(regressor_run.astype(np.float32))
+            fmri_runs_perm.append(fmri_run)
 
         # Fit LORO on permuted data
         loro_perm = train_ridge_loro(
             regressors_runs=runs_regressors_perm,
-            fmri_runs=fmri_runs,
+            fmri_runs=fmri_runs_perm,
             alphas=list(np.logspace(2, 7, 16)),
         )
         perm_corrs.append(loro_perm.mean_corr_per_voxel[:n_voxels])
@@ -274,6 +291,8 @@ def run_permutation_baseline(
         "lang": lang_lower,
         "n_permutations": int(n_permutations),
         "permutation_mode": permutation_mode,
+        "temporal_feature_strategy": temporal_feature_strategy,
+        "response_lag_trs": [int(delay) for delay in response_lag_trs],
         "seed": int(seed),
         "n_voxels": int(len(corr_real)),
         "real_mean_corr": float(corr_real.mean()),
@@ -314,6 +333,18 @@ def main():
     parser.add_argument("--n_permutations", type=int, default=20)
     parser.add_argument("--n_voxels", type=int, default=100000)
     parser.add_argument(
+        "--temporal_feature_strategy",
+        type=str,
+        default="hemodynamic_convolution",
+        choices=["hemodynamic_convolution", "lagged_response_window"],
+    )
+    parser.add_argument(
+        "--response_lag_trs",
+        type=int,
+        nargs="+",
+        default=[2, 3, 4, 5],
+    )
+    parser.add_argument(
         "--permutation_mode",
         type=str,
         default="shuffle",
@@ -340,6 +371,8 @@ def main():
         output_dir=args.output_dir,
         n_permutations=args.n_permutations,
         n_voxels=args.n_voxels,
+        temporal_feature_strategy=args.temporal_feature_strategy,
+        response_lag_trs=args.response_lag_trs,
         permutation_mode=args.permutation_mode,
         seed=args.seed,
         access_token=args.access_token,

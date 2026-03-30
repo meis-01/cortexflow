@@ -1,0 +1,37 @@
+# DVC parameterization for mode selection
+# Set 'mode' to either 'pilot' or 'final' to switch between synthetic and real data pipelines
+mode: pilot
+
+pilot:
+  text_script: src/pilot/make_tr_text.py
+  text_out: data/pilot/text_trs.txt
+  features_script: src/pilot/extract_gpt2.py
+  features_in: data/pilot/text_trs.txt
+  features_out: data/pilot/X.npy
+  synth_script: src/pilot/make_synth_bold.py
+  synth_in: data/pilot/X.npy
+  synth_out: data/pilot/Y.npy
+  train_in_X: data/pilot/X.npy
+  train_in_Y: data/pilot/Y.npy
+  train_out: artifacts/pilot
+  eval_in_Y: data/pilot/Y.npy
+  eval_in_Yhat: artifacts/pilot/Yhat.npy
+  eval_out: artifacts/pilot/plots
+  config: configs/pilot.json
+
+final:
+  text_in: data/openneuro/ds003643
+  text_script: src/final/prepare_text.py
+  text_out: data/final/text_trs.txt
+  features_script: src/pilot/extract_gpt2.py
+  features_in: data/final/text_trs.txt
+  features_out: data/final/X.npy
+  prep_script: src/pilot/real_min_prep.py
+  prep_out: data/final/Y.npy
+  train_in_X: data/final/X.npy
+  train_in_Y: data/final/Y.npy
+  train_out: artifacts/final
+  eval_in_Y: data/final/Y.npy
+  eval_in_Yhat: artifacts/final/Yhat.npy
+  eval_out: artifacts/final/plots
+  config: configs/final.json

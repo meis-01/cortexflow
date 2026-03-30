@@ -1,0 +1,34 @@
+{
+  "mode": "pilot",
+  "dataset": {
+    "text_trs": "data/pilot/text_trs.txt",
+    "fmri_matrix": "data/pilot/Y.npy",
+    "fmri_nifti": null,
+    "mask_img": null,
+    "max_voxels": 200
+  },
+  "features": {
+    "model_name": "gpt2",
+    "layer": 6,
+    "batch_size": 4,
+    "max_length": 64,
+    "pooling": "mean"
+  },
+  "design": {
+    "delays": [0],
+    "standardize": true
+  },
+  "training": {
+    "alphas": [100.0, 316.0, 1000.0, 3160.0, 10000.0, 31600.0, 100000.0],
+    "n_splits": 5,
+    "fit_intercept": true
+  },
+  "evaluation": {
+    "save_predictions": true,
+    "hemi_labels": null
+  },
+  "output": {
+    "dir": "artifacts/pilot"
+  },
+  "seed": 0
+}

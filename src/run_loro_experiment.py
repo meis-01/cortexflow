@@ -28,7 +28,7 @@ import zipfile
 from tqdm import tqdm
 
 # Cortexflow pipeline imports
-from cortexflow.design import build_regressor_from_activations
+from cortexflow.design import build_temporal_design_matrix
 from cortexflow.features import (
     extract_word_activations_run,
     load_llm_model,
@@ -119,6 +119,8 @@ def run_experiment(
     n_runs: int = 9,
     t_r: float = 2.0,
     hrf_model: str = "glover",
+    temporal_feature_strategy: str = "hemodynamic_convolution",
+    response_lag_trs: Optional[List[int]] = None,
     n_voxels: int = 100000,
     alphas: Optional[List[float]] = None,
     access_token: Optional[str] = None,
@@ -145,6 +147,11 @@ def run_experiment(
         Repetition time in seconds (2.0 for LPP)
     hrf_model : str
         HRF kernel ("glover", etc.)
+    temporal_feature_strategy : str
+        Temporal design strategy: "hemodynamic_convolution" or
+        "lagged_response_window"
+    response_lag_trs : list of int
+        TR lags used when temporal_feature_strategy="lagged_response_window"
     n_voxels : int
         Max voxels to keep
     alphas : list of float
@@ -168,9 +175,19 @@ def run_experiment(
 
     if alphas is None:
         alphas = list(np.logspace(2, 7, 16))
+    if response_lag_trs is None:
+        response_lag_trs = [2, 3, 4, 5]
 
     lang_lower = lang.lower()
     assert lang_lower in ["en", "fr", "cn"], f"Unsupported language: {lang}"
+    if temporal_feature_strategy not in {
+        "hemodynamic_convolution",
+        "lagged_response_window",
+    }:
+        raise ValueError(
+            "temporal_feature_strategy must be one of: "
+            "hemodynamic_convolution, lagged_response_window"
+        )
 
     # ---- Load fMRI ----
     print(f"\n[1/4] Loading avg-subject fMRI runs for {lang_lower}...")
@@ -229,11 +246,18 @@ def run_experiment(
         activations_run = np.array(layers_words_acts[layer])  # select layer
         runs_activations.append(activations_run)
 
-        # Convolve with HRF
         frame_times = np.arange(fmri_runs[run_idx].shape[0]) * t_r + 0.5 * t_r
-        regressor_run = build_regressor_from_activations(
-            activations_run, onsets, offsets, frame_times, hrf_model=hrf_model
+        regressor_run, trim_from_start = build_temporal_design_matrix(
+            activations_run,
+            onsets,
+            offsets,
+            frame_times,
+            temporal_feature_strategy=temporal_feature_strategy,
+            hrf_model=hrf_model,
+            response_lag_trs=response_lag_trs,
         )
+        if trim_from_start > 0:
+            fmri_runs[run_idx] = fmri_runs[run_idx][trim_from_start:]
 
         # fMRI runs are already trimmed by load_avg_subject_runs(trim_trs=10).
         # Keep regressor at the same run length and align defensively.
@@ -279,6 +303,8 @@ def run_experiment(
         "best_alphas_per_fold": [float(a) for a in loro_result.best_alphas],
         "alphas_tested": [float(a) for a in alphas],
         "hrf_model": hrf_model,
+        "temporal_feature_strategy": temporal_feature_strategy,
+        "response_lag_trs": [int(delay) for delay in response_lag_trs],
         "t_r": float(t_r),
     }
 
@@ -351,6 +377,26 @@ def main():
         help="HRF kernel (glover, spm, canonical)",
     )
     parser.add_argument(
+        "--temporal_feature_strategy",
+        type=str,
+        default="hemodynamic_convolution",
+        choices=["hemodynamic_convolution", "lagged_response_window"],
+        help=(
+            "How activations are aligned to fMRI: "
+            "hemodynamic_convolution or lagged_response_window"
+        ),
+    )
+    parser.add_argument(
+        "--response_lag_trs",
+        type=int,
+        nargs="+",
+        default=[2, 3, 4, 5],
+        help=(
+            "TR lags used when temporal_feature_strategy=lagged_response_window "
+            "(default: 2 3 4 5)"
+        ),
+    )
+    parser.add_argument(
         "--access_token",
         type=str,
         default=None,
@@ -368,6 +414,8 @@ def main():
         output_dir=args.output_dir,
         n_voxels=args.n_voxels,
         hrf_model=args.hrf_model,
+        temporal_feature_strategy=args.temporal_feature_strategy,
+        response_lag_trs=args.response_lag_trs,
         access_token=args.access_token,
     )
 

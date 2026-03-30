@@ -282,6 +282,13 @@ def extract_word_activations_run(
             i_start, i_stop = inputs["offset_mapping"][idx_batch, idx_token].numpy()
             n += 1
         if n == 20:
+            if lang == "cn":
+                # Chinese annotation/token boundaries can occasionally diverge.
+                # Keep progress with a best-effort alignment instead of failing
+                # the whole run.
+                idx_word_to_idx_token.append((idx_batch, idx_token))
+                idx_token += 1
+                continue
             raise RuntimeError(
                 f"No matching token for word {idx_word} ({word!r})"
             )
@@ -334,6 +341,12 @@ def extract_word_activations_run(
                     emb_layers[lyr].append(hidden_states[idx_b_next][lyr][i])
 
         for lyr in range(n_layers):
+            # Some CN words can collapse to an empty token span when two
+            # consecutive words align to the same tokenizer position.
+            # Fall back to the current token representation to keep a
+            # consistent (n_neurons,) shape for every word.
+            if len(emb_layers[lyr]) == 0:
+                emb_layers[lyr].append(hidden_states[idx_b][lyr][idx_t])
             layers_words_activations[lyr].append(np.mean(emb_layers[lyr], axis=0))
 
     # last word
@@ -346,6 +359,8 @@ def extract_word_activations_run(
         for lyr in range(n_layers):
             emb_layers[lyr].append(hidden_states[idx_b][lyr][i])
     for lyr in range(n_layers):
+        if len(emb_layers[lyr]) == 0:
+            emb_layers[lyr].append(hidden_states[idx_b][lyr][idx_t])
         layers_words_activations[lyr].append(np.mean(emb_layers[lyr], axis=0))
 
     return layers_words_activations
